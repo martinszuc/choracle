@@ -2,6 +2,7 @@ services:
   - type: web
     name: choracle-backend
     env: python
+    plan: free
     buildCommand: "./backend/build.sh"
     startCommand: "cd backend && gunicorn choracle.wsgi"
     envVars:
