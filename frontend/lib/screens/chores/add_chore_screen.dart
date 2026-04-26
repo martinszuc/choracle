@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../models/member.dart';
 import '../../providers/app_provider.dart';
 import '../../providers/chores_provider.dart';
+import '../../widgets/shared/member_avatar.dart';
 
 class AddChoreScreen extends StatefulWidget {
   const AddChoreScreen({super.key});
@@ -15,14 +16,24 @@ class AddChoreScreen extends StatefulWidget {
 class _AddChoreScreenState extends State<AddChoreScreen> {
   int _tabIndex = 0;
 
-  // immediate form state
+  // immediate form
   final _nameCtrl = TextEditingController();
   Member? _selectedMember;
 
-  // scheduled form state
+  // scheduled form
   final _schedNameCtrl = TextEditingController();
   final _freqCtrl = TextEditingController(text: '7');
   DateTime _startDate = DateTime.now();
+  Member? _schedMember;
+
+  @override
+  void initState() {
+    super.initState();
+    // default both assignee fields to the current member
+    final current = context.read<AppProvider>().currentMember;
+    _selectedMember = current;
+    _schedMember = current;
+  }
 
   @override
   void dispose() {
@@ -58,7 +69,7 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: _tabIndex == 0
                   ? _buildImmediateForm(members, chores)
-                  : _buildScheduledForm(chores),
+                  : _buildScheduledForm(members, chores),
             ),
           ),
         ],
@@ -70,37 +81,49 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Chore name')),
+        TextField(
+          controller: _nameCtrl,
+          decoration: const InputDecoration(labelText: 'Chore name'),
+        ),
         const SizedBox(height: 12),
-        DropdownButtonFormField<Member>(
-          initialValue: _selectedMember,
-          hint: const Text('Assign to'),
-          decoration: const InputDecoration(labelText: 'Assign to'),
-          items: context.read<AppProvider>().members
-              .map((m) => DropdownMenuItem(value: m, child: Text(m.name)))
-              .toList(),
+        _MemberDropdown(
+          label: 'Assign to',
+          members: members,
+          value: _selectedMember,
           onChanged: (m) => setState(() => _selectedMember = m),
         ),
         const SizedBox(height: 16),
         FilledButton(
-          onPressed: () async {
-            final name = _nameCtrl.text.trim();
-            if (name.isEmpty || _selectedMember == null) return;
-            await chores.addChore(name, _selectedMember!.id);
-            if (!mounted) return;
-            Navigator.of(context).pop();
-          },
+          onPressed: _nameCtrl.text.trim().isEmpty || _selectedMember == null
+              ? null
+              : () async {
+                  final name = _nameCtrl.text.trim();
+                  await chores.addChore(name, _selectedMember!.id);
+                  if (!mounted) return;
+                  Navigator.of(context).pop();
+                },
           child: const Text('Add Chore'),
         ),
       ],
     );
   }
 
-  Widget _buildScheduledForm(ChoresProvider chores) {
+  Widget _buildScheduledForm(List<Member> members, ChoresProvider chores) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TextField(controller: _schedNameCtrl, decoration: const InputDecoration(labelText: 'Chore name')),
+        TextField(
+          controller: _schedNameCtrl,
+          decoration: const InputDecoration(labelText: 'Chore name'),
+          onChanged: (_) => setState(() {}),
+        ),
+        const SizedBox(height: 12),
+        _MemberDropdown(
+          label: 'Assign to',
+          members: members,
+          value: _schedMember,
+          onChanged: (m) => setState(() => _schedMember = m),
+        ),
         const SizedBox(height: 12),
         TextField(
           controller: _freqCtrl,
@@ -125,14 +148,19 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
         ),
         const SizedBox(height: 12),
         FilledButton(
-          onPressed: () async {
-            final name = _schedNameCtrl.text.trim();
-            final freq = int.tryParse(_freqCtrl.text) ?? 7;
-            if (name.isEmpty) return;
-            await chores.addDefaultChore(name, freq, _startDate);
-            if (!mounted) return;
-            _schedNameCtrl.clear();
-          },
+          onPressed: _schedNameCtrl.text.trim().isEmpty
+              ? null
+              : () async {
+                  final name = _schedNameCtrl.text.trim();
+                  final freq = int.tryParse(_freqCtrl.text) ?? 7;
+                  await chores.addDefaultChore(
+                    name, freq, _startDate,
+                    assignedToId: _schedMember?.id,
+                  );
+                  if (!mounted) return;
+                  _schedNameCtrl.clear();
+                  setState(() {});
+                },
           child: const Text('Save Template'),
         ),
         const SizedBox(height: 24),
@@ -140,14 +168,43 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
         const SizedBox(height: 8),
         ...chores.defaultChores.map((dc) => ListTile(
               contentPadding: EdgeInsets.zero,
+              leading: MemberAvatar(member: dc.assignedTo, radius: 16),
               title: Text(dc.name),
-              subtitle: Text('Every ${dc.frequencyDays} days'),
+              subtitle: Text(
+                '${dc.assignedTo?.name ?? 'Unassigned'} · every ${dc.frequencyDays} days',
+              ),
               trailing: IconButton(
                 icon: const Icon(Icons.delete_outline),
                 onPressed: () => chores.deleteDefaultChore(dc.id),
               ),
             )),
       ],
+    );
+  }
+}
+
+class _MemberDropdown extends StatelessWidget {
+  final String label;
+  final List<Member> members;
+  final Member? value;
+  final ValueChanged<Member?> onChanged;
+
+  const _MemberDropdown({
+    required this.label,
+    required this.members,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DropdownButtonFormField<Member>(
+      initialValue: members.contains(value) ? value : null,
+      decoration: InputDecoration(labelText: label),
+      items: members
+          .map((m) => DropdownMenuItem(value: m, child: Text(m.name)))
+          .toList(),
+      onChanged: onChanged,
     );
   }
 }

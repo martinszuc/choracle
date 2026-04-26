@@ -142,7 +142,7 @@ class ChoresProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> addDefaultChore(String name, int frequencyDays, DateTime startDate) async {
+  Future<void> addDefaultChore(String name, int frequencyDays, DateTime startDate, {String? assignedToId}) async {
     _isLoading = true;
     notifyListeners();
     try {
@@ -150,6 +150,8 @@ class ChoresProvider extends ChangeNotifier {
         'name': name,
         'frequency_days': frequencyDays,
         'start_date': DateFormat('yyyy-MM-dd').format(startDate),
+        // ignore: use_null_aware_elements
+        if (assignedToId != null) 'assigned_to_id': assignedToId,
       });
       await fetchDefaultChores();
     } on DioException catch (e) {
