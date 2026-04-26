@@ -18,7 +18,11 @@ class ApiClient {
   late final Dio _dio = _buildDio();
 
   Dio _buildDio() {
-    final dio = Dio(BaseOptions(baseUrl: kBaseUrl));
+    final dio = Dio(BaseOptions(
+      baseUrl: kBaseUrl,
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 15),
+    ));
 
     dio.interceptors.add(InterceptorsWrapper(
       onRequest: (options, handler) {
