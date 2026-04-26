@@ -21,8 +21,9 @@ class ApiClient {
   Dio _buildDio() {
     final dio = Dio(BaseOptions(
       baseUrl: kBaseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
+      // Render free tier cold-starts take 20-30s; 45s gives safe headroom
+      connectTimeout: const Duration(seconds: 45),
+      receiveTimeout: const Duration(seconds: 30),
     ));
 
     dio.interceptors.add(_ApiLogInterceptor());

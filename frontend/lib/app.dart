@@ -60,6 +60,19 @@ class _HomeShellState extends State<_HomeShell> {
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
+
+    // show wake-up screen while the Render free-tier backend is cold-starting
+    if (app.isLoading && app.household == null) {
+      return const _WakeUpScreen();
+    }
+
+    if (app.error != null && app.household == null) {
+      return _ErrorScreen(
+        message: app.error!,
+        onRetry: () => context.read<AppProvider>().initialize(),
+      );
+    }
+
     final members = app.members;
 
     return Scaffold(
@@ -179,5 +192,74 @@ class _HomeShellState extends State<_HomeShell> {
     // controller disposed when dialog is closed via StatefulWidget, but since
     // AlertDialog is not a StatefulWidget here we rely on the GC — acceptable
     // for a simple dialog without pending lifecycle
+  }
+}
+
+class _WakeUpScreen extends StatelessWidget {
+  const _WakeUpScreen();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const CircularProgressIndicator(),
+            const SizedBox(height: 24),
+            Text(
+              'Connecting…',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Server is waking up, this can take\nup to 30 seconds on first launch.',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorScreen extends StatelessWidget {
+  final String message;
+  final VoidCallback onRetry;
+  const _ErrorScreen({required this.message, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.cloud_off_outlined, size: 48, color: Colors.grey),
+              const SizedBox(height: 16),
+              Text(
+                'Could not reach server',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              FilledButton.icon(
+                onPressed: onRetry,
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
