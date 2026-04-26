@@ -20,17 +20,25 @@ class HouseholdSerializer(serializers.ModelSerializer):
         fields = ['id', 'name', 'members']
 
 
-class DefaultChoreSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = DefaultChore
-        fields = ['id', 'name', 'frequency_days', 'start_date', 'last_generated', 'household']
-        read_only_fields = ['id', 'last_generated']
-
-
 class MemberNestedSerializer(serializers.ModelSerializer):
     class Meta:
         model = Member
         fields = ['id', 'name', 'color']
+
+
+class DefaultChoreSerializer(serializers.ModelSerializer):
+    assigned_to = MemberNestedSerializer(read_only=True)
+    assigned_to_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
+
+    class Meta:
+        model = DefaultChore
+        fields = ['id', 'name', 'assigned_to', 'assigned_to_id', 'frequency_days', 'start_date', 'last_generated', 'household']
+        read_only_fields = ['id', 'last_generated']
+
+    def create(self, validated_data):
+        assigned_id = validated_data.pop('assigned_to_id', None)
+        member = Member.objects.get(id=assigned_id) if assigned_id else None
+        return DefaultChore.objects.create(assigned_to=member, **validated_data)
 
 
 class ChoreSerializer(serializers.ModelSerializer):

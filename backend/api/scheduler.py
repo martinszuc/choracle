@@ -10,7 +10,7 @@ def generate_due_chores():
     from .views import _week_id
 
     today = date.today()
-    for template in DefaultChore.objects.select_related('household').all():
+    for template in DefaultChore.objects.select_related('household', 'assigned_to').all():
         if today < template.start_date:
             continue
         if template.last_generated:
@@ -20,6 +20,8 @@ def generate_due_chores():
         Chore.objects.create(
             household=template.household,
             name=template.name,
+            assigned_to=template.assigned_to,
+            original_assigned_to=template.assigned_to,
             week_identifier=_week_id(today),
         )
         template.last_generated = today

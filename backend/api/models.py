@@ -34,6 +34,9 @@ class DefaultChore(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     household = models.ForeignKey(Household, on_delete=models.CASCADE, related_name='default_chores')
     name = models.CharField(max_length=255)
+    assigned_to = models.ForeignKey(
+        Member, on_delete=models.SET_NULL, null=True, blank=True, related_name='default_chores_assigned'
+    )
     frequency_days = models.IntegerField()
     start_date = models.DateField()
     last_generated = models.DateField(null=True, blank=True)
