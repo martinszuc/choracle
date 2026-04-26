@@ -12,6 +12,12 @@
 .swiftpm/
 migrate_working_dir/
 
+TASK.md
+
+choracle.iml
+
+
+
 # IntelliJ related
 *.iml
 *.ipr
