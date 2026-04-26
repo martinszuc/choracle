@@ -3,10 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/api_client.dart';
+import 'models/member.dart';
 import 'providers/app_provider.dart';
 import 'providers/chores_provider.dart';
-import 'providers/shopping_provider.dart';
 import 'providers/finance_provider.dart';
+import 'providers/shopping_provider.dart';
 import 'screens/chores/chores_screen.dart';
 import 'screens/shopping/shopping_screen.dart';
 import 'screens/finance/finance_screen.dart';
@@ -90,9 +91,31 @@ class _HomeShellState extends State<_HomeShell> {
     super.dispose();
   }
 
+  void _showErrorIfNew(BuildContext context, String? error) {
+    if (error == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text(error),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 4),
+        ));
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppProvider>();
+    final choresErr = context.select<ChoresProvider, String?>((p) => p.error);
+    final shoppingErr = context.select<ShoppingProvider, String?>((p) => p.error);
+    final financeErr = context.select<FinanceProvider, String?>((p) => p.error);
+
+    _showErrorIfNew(context, choresErr);
+    _showErrorIfNew(context, shoppingErr);
+    _showErrorIfNew(context, financeErr);
 
     // show wake-up screen while the Render free-tier backend is cold-starting
     if (app.isLoading && app.household == null) {
@@ -107,6 +130,10 @@ class _HomeShellState extends State<_HomeShell> {
     }
 
     final members = app.members;
+
+    if (app.household != null && app.currentMember == null && members.length > 1) {
+      return _IdentityScreen(members: members);
+    }
 
     return Scaffold(
       drawer: Drawer(
@@ -241,6 +268,50 @@ class _HomeShellState extends State<_HomeShell> {
     // controller disposed when dialog is closed via StatefulWidget, but since
     // AlertDialog is not a StatefulWidget here we rely on the GC — acceptable
     // for a simple dialog without pending lifecycle
+  }
+}
+
+class _IdentityScreen extends StatelessWidget {
+  final List<Member> members;
+  const _IdentityScreen({required this.members});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.waving_hand_outlined, size: 48),
+              const SizedBox(height: 16),
+              Text('Who are you?', style: Theme.of(context).textTheme.headlineSmall),
+              const SizedBox(height: 8),
+              Text(
+                'Select your name to get started',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              ),
+              const SizedBox(height: 32),
+              ...members.map((m) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 6),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.read<AppProvider>().selectMember(m),
+                        icon: MemberAvatar(member: m, radius: 14),
+                        label: Text(m.name),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                      ),
+                    ),
+                  )),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

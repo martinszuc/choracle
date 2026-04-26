@@ -32,7 +32,11 @@ class AppProvider extends ChangeNotifier {
       if (savedId != null) {
         _currentMember = _household!.members.where((m) => m.id == savedId).firstOrNull;
       }
-      _currentMember ??= _household!.members.firstOrNull;
+      // auto-select only when there's a single member; with multiple members
+      // we want the user to explicitly pick who they are on first launch
+      if (_currentMember == null && _household!.members.length == 1) {
+        _currentMember = _household!.members.first;
+      }
       _error = null;
     } on DioException catch (e) {
       _error = (e.error as ApiException?)?.message ?? e.message;
