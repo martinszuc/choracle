@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'constants.dart';
@@ -11,6 +13,19 @@ class ApiException implements Exception {
   @override
   String toString() => 'ApiException($statusCode): $message';
 }
+
+// ── Request activity notifiers ────────────────────────────────────────────────
+
+// incremented on every request start, decremented on finish — drives the
+// thin progress bar in the shell
+final ValueNotifier<int> apiInFlight = ValueNotifier(0);
+
+// emits a brief human-readable message after each successful mutation
+// (POST / PUT / DELETE); listeners show it as a snackbar
+final StreamController<String> apiSuccessEvents =
+    StreamController<String>.broadcast();
+
+// ── Client ────────────────────────────────────────────────────────────────────
 
 class ApiClient {
   ApiClient._();
@@ -51,20 +66,30 @@ class ApiClient {
   Dio get dio => _dio;
 }
 
+// ── Interceptor ───────────────────────────────────────────────────────────────
+
 class _ApiLogInterceptor extends Interceptor {
-  // tag is short so logcat filter `[API` catches all lines
   static const _tag = '[API]';
-  // truncate large bodies so logcat isn't flooded
   static const _maxBodyLen = 800;
+
+  // brief labels for the success toast
+  static const _labels = {
+    'POST': 'Saved',
+    'PUT': 'Updated',
+    'DELETE': 'Deleted',
+  };
 
   @override
   void onRequest(RequestOptions options, RequestInterceptorHandler handler) {
+    apiInFlight.value++;
     if (kDebugMode) {
       final qs = options.queryParameters.isNotEmpty
           ? '  query=${options.queryParameters}'
           : '';
       final body = _fmt(options.data);
-      debugPrint('$_tag ▶ ${options.method} ${options.path}$qs${body.isNotEmpty ? '\n$_tag   body=$body' : ''}');
+      debugPrint(
+          '$_tag ▶ ${options.method} ${options.path}$qs'
+          '${body.isNotEmpty ? '\n$_tag   body=$body' : ''}');
       options.extra['_ts'] = DateTime.now().millisecondsSinceEpoch;
     }
     handler.next(options);
@@ -72,6 +97,7 @@ class _ApiLogInterceptor extends Interceptor {
 
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) {
+    apiInFlight.value = (apiInFlight.value - 1).clamp(0, 999);
     if (kDebugMode) {
       final ms = _elapsed(response.requestOptions);
       debugPrint(
@@ -80,11 +106,15 @@ class _ApiLogInterceptor extends Interceptor {
         '$_tag   body=${_fmt(response.data)}',
       );
     }
+    final method = response.requestOptions.method;
+    final label = _labels[method];
+    if (label != null) apiSuccessEvents.add(label);
     handler.next(response);
   }
 
   @override
   void onError(DioException err, ErrorInterceptorHandler handler) {
+    apiInFlight.value = (apiInFlight.value - 1).clamp(0, 999);
     if (kDebugMode) {
       final ms = _elapsed(err.requestOptions);
       final status = err.response?.statusCode ?? '—';
@@ -92,7 +122,8 @@ class _ApiLogInterceptor extends Interceptor {
       debugPrint(
         '$_tag ✗ $status ${err.requestOptions.method} ${err.requestOptions.path}  '
         '(${ms}ms)  type=${err.type.name}\n'
-        '$_tag   message=${err.message}${body.isNotEmpty ? '\n$_tag   body=$body' : ''}',
+        '$_tag   message=${err.message}'
+        '${body.isNotEmpty ? '\n$_tag   body=$body' : ''}',
       );
     }
     handler.next(err);

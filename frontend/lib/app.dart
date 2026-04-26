@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/api_client.dart';
 import 'providers/app_provider.dart';
 import 'providers/chores_provider.dart';
 import 'providers/shopping_provider.dart';
@@ -50,12 +53,42 @@ class _HomeShell extends StatefulWidget {
 
 class _HomeShellState extends State<_HomeShell> {
   int _selectedIndex = 0;
+  StreamSubscription<String>? _successSub;
 
   final _navigatorKeys = [
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
     GlobalKey<NavigatorState>(),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _successSub = apiSuccessEvents.stream.listen((msg) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.check_circle_outline, color: Colors.white, size: 16),
+              const SizedBox(width: 8),
+              Text(msg),
+            ],
+          ),
+          duration: const Duration(seconds: 2),
+          behavior: SnackBarBehavior.floating,
+          width: 140,
+        ));
+    });
+  }
+
+  @override
+  void dispose() {
+    _successSub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -117,20 +150,36 @@ class _HomeShellState extends State<_HomeShell> {
           ),
         ),
       ),
-      body: IndexedStack(
-        index: _selectedIndex,
+      body: Stack(
         children: [
-          Navigator(
-            key: _navigatorKeys[0],
-            onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const ChoresScreen()),
+          IndexedStack(
+            index: _selectedIndex,
+            children: [
+              Navigator(
+                key: _navigatorKeys[0],
+                onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const ChoresScreen()),
+              ),
+              Navigator(
+                key: _navigatorKeys[1],
+                onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const ShoppingScreen()),
+              ),
+              Navigator(
+                key: _navigatorKeys[2],
+                onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const FinanceScreen()),
+              ),
+            ],
           ),
-          Navigator(
-            key: _navigatorKeys[1],
-            onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const ShoppingScreen()),
-          ),
-          Navigator(
-            key: _navigatorKeys[2],
-            onGenerateRoute: (_) => MaterialPageRoute(builder: (_) => const FinanceScreen()),
+          // thin progress bar at the top — shown whenever any request is in flight
+          ValueListenableBuilder<int>(
+            valueListenable: apiInFlight,
+            builder: (context2, count, child) => count > 0
+                ? const Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    child: LinearProgressIndicator(minHeight: 2),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
