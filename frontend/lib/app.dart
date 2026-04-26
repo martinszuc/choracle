@@ -286,28 +286,63 @@ class _ErrorScreen extends StatelessWidget {
           padding: const EdgeInsets.all(32),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.cloud_off_outlined, size: 48, color: Colors.grey),
+              const Center(child: Icon(Icons.cloud_off_outlined, size: 48, color: Colors.grey)),
               const SizedBox(height: 16),
-              Text(
-                'Could not reach server',
-                style: Theme.of(context).textTheme.titleMedium,
+              Center(
+                child: Text(
+                  'Could not reach server',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
               ),
               const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+              Center(
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                ),
               ),
               const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: onRetry,
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
+              const Text('Checklist:', style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              const _CheckItem('Device has internet — open a browser and try google.com'),
+              const _CheckItem('Open in browser: choracle-backend.onrender.com/api/household/'),
+              const _CheckItem('Try switching between WiFi and mobile data'),
+              const _CheckItem('Backend URL: https://choracle-backend.onrender.com'),
+              const SizedBox(height: 24),
+              Center(
+                child: FilledButton.icon(
+                  onPressed: onRetry,
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('Retry'),
+                ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _CheckItem extends StatelessWidget {
+  final String text;
+  const _CheckItem(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('• ', style: TextStyle(color: Colors.grey)),
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+          ),
+        ],
       ),
     );
   }
