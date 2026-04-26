@@ -28,7 +28,10 @@ class _ChoresScreenState extends State<ChoresScreen> {
         .where((c) => !c.completed && c.assignedTo?.id == currentMember?.id)
         .toList();
     final othersChores = chores.chores
-        .where((c) => !c.completed && c.assignedTo?.id != currentMember?.id)
+        .where((c) => !c.completed && c.assignedTo != null && c.assignedTo?.id != currentMember?.id)
+        .toList();
+    final unassignedChores = chores.chores
+        .where((c) => !c.completed && c.assignedTo == null)
         .toList();
     final completed = chores.chores.where((c) => c.completed).toList();
     final total = chores.chores.length;
@@ -66,6 +69,11 @@ class _ChoresScreenState extends State<ChoresScreen> {
                   const SizedBox(height: 8),
                   _SectionHeader(title: "Others' tasks", count: othersChores.length),
                   ...othersChores.map((c) => _OtherChoreCard(chore: c)),
+                  if (unassignedChores.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    _SectionHeader(title: 'Unassigned', count: unassignedChores.length),
+                    ...unassignedChores.map((c) => _OtherChoreCard(chore: c)),
+                  ],
                   const SizedBox(height: 8),
                   _SectionHeader(title: 'Completed this week', count: completed.length),
                   if (completed.isEmpty)
