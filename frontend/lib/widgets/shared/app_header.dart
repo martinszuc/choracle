@@ -21,6 +21,19 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
+  void _openRootDrawer(BuildContext context) {
+    context.visitAncestorElements((element) {
+      if (element is StatefulElement && element.state is ScaffoldState) {
+        final scaffold = element.state as ScaffoldState;
+        if (scaffold.hasDrawer) {
+          scaffold.openDrawer();
+          return false;
+        }
+      }
+      return true;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppBar(
@@ -34,13 +47,11 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         ],
       ),
       leading: showDrawerButton
-          ? Builder(
-              builder: (ctx) => IconButton(
-                icon: currentMember != null
-                    ? MemberAvatar(member: currentMember, radius: 14)
-                    : const Icon(Icons.menu),
-                onPressed: () => Scaffold.of(ctx).openDrawer(),
-              ),
+          ? IconButton(
+              icon: currentMember != null
+                  ? MemberAvatar(member: currentMember, radius: 14)
+                  : const Icon(Icons.menu),
+              onPressed: () => _openRootDrawer(context),
             )
           : null,
       actions: actions,
