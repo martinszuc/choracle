@@ -73,7 +73,7 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
         TextField(controller: _nameCtrl, decoration: const InputDecoration(labelText: 'Chore name')),
         const SizedBox(height: 12),
         DropdownButtonFormField<Member>(
-          value: _selectedMember,
+          initialValue: _selectedMember,
           hint: const Text('Assign to'),
           decoration: const InputDecoration(labelText: 'Assign to'),
           items: context.read<AppProvider>().members

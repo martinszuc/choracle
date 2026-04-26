@@ -17,7 +17,7 @@ class ScheduledPaymentsScreen extends StatelessWidget {
     final grouped = _groupByMonth(txs);
 
     return Scaffold(
-      appBar: const AppBar(title: Text('Scheduled Payments')),
+      appBar: AppBar(title: const Text('Scheduled Payments')),
       body: txs.isEmpty
           ? const EmptyState(icon: Icons.event_repeat_outlined, message: 'No scheduled payments')
           : ListView.builder(

@@ -82,7 +82,7 @@ class _HomeShellState extends State<_HomeShell> {
                       leading: MemberAvatar(member: m),
                       title: Text(m.name),
                       selected: isSelected,
-                      selectedTileColor: kPrimaryColor.withOpacity(0.1),
+                      selectedTileColor: kPrimaryColor.withValues(alpha: 0.1),
                       onTap: () {
                         app.selectMember(m);
                         Navigator.of(context).pop();

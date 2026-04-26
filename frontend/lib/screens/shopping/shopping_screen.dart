@@ -90,7 +90,7 @@ class _ShoppingItemTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (shopping.showAvatars && item.createdBy != null)
+            if (shopping.showAvatars)
               MemberAvatar(member: item.createdBy, radius: 14),
             IconButton(
               icon: const Icon(Icons.delete_outline),

@@ -202,7 +202,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
                     title: Text(i.name),
                     value: chosen.contains(i.id),
                     onChanged: (v) => set(() {
-                      if (v == true) chosen.add(i.id); else chosen.remove(i.id);
+                      if (v == true) { chosen.add(i.id); } else { chosen.remove(i.id); }
                     }),
                   );
                 }).toList(),
@@ -221,6 +221,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
     );
 
     if (selected == null || selected.isEmpty) return;
+    if (!context.mounted) return;
     final names = context.read<ShoppingProvider>().items
         .where((i) => selected.contains(i.id))
         .map((i) => i.name)
@@ -282,7 +283,7 @@ class _TransactionFormScreenState extends State<TransactionFormScreen> {
       await finance.addTransaction(data);
     }
 
-    if (!mounted) return;
+    if (!context.mounted) return;
     Navigator.of(context).pop();
   }
 }

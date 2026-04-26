@@ -153,15 +153,15 @@ class _AddItemScreenState extends State<AddItemScreen> {
     if (itemsData.isEmpty) return;
 
     await shopping.addItems(itemsData);
-    if (!mounted) return;
+    if (!context.mounted) return;
     Navigator.of(context).pop();
   }
 }
 
 class _PendingItem {
   String name;
-  int quantity;
-  _PendingItem({required this.name, this.quantity = 1});
+  int quantity = 1;
+  _PendingItem({required this.name});
 }
 
 class _PendingItemRow extends StatelessWidget {

@@ -48,7 +48,7 @@ ThemeData buildAppTheme() {
       foregroundColor: Colors.white,
     ),
     navigationBarTheme: NavigationBarThemeData(
-      indicatorColor: kPrimaryColor.withOpacity(0.15),
+      indicatorColor: kPrimaryColor.withValues(alpha: 0.15),
       labelTextStyle: WidgetStateProperty.all(
         const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: kTextColor),
       ),
