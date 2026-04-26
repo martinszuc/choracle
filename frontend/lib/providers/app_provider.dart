@@ -49,15 +49,33 @@ class AppProvider extends ChangeNotifier {
     await prefs.setString(_kSelectedMemberId, member.id);
   }
 
-  Future<void> addMember(String name) async {
-    final resp = await ApiClient.instance.dio.post('/members/', data: {'name': name});
-    final newMember = Member.fromJson(resp.data as Map<String, dynamic>);
-    await initialize();
-    await selectMember(newMember);
+  Future<bool> addMember(String name) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final resp = await ApiClient.instance.dio.post('/members/', data: {'name': name});
+      final newMember = Member.fromJson(resp.data as Map<String, dynamic>);
+      await initialize();
+      await selectMember(newMember);
+      return true;
+    } on DioException catch (e) {
+      _error = (e.error as ApiException?)?.message ?? e.message;
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> deleteMember(String id) async {
-    await ApiClient.instance.dio.delete('/members/$id/');
-    await initialize();
+    try {
+      await ApiClient.instance.dio.delete('/members/$id/');
+      await initialize();
+    } on DioException catch (e) {
+      _error = (e.error as ApiException?)?.message ?? e.message;
+      notifyListeners();
+    }
   }
 }

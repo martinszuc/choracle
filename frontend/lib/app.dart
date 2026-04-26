@@ -163,7 +163,13 @@ class _HomeShellState extends State<_HomeShell> {
               final name = controller.text.trim();
               if (name.isEmpty) return;
               Navigator.of(ctx).pop();
-              await context.read<AppProvider>().addMember(name);
+              final ok = await context.read<AppProvider>().addMember(name);
+              if (!context.mounted) return;
+              if (!ok) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(context.read<AppProvider>().error ?? 'Failed to add member')),
+                );
+              }
             },
             child: const Text('Add'),
           ),
