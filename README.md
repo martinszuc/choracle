@@ -25,7 +25,51 @@ A household management app for people living together. Choracle keeps shared cho
 - **Frontend:** Flutter (Android)
 - **Backend:** Django REST Framework
 - **Database:** PostgreSQL
-- **Deployment:** Render
+- **Deployment:** Render (free tier)
+
+---
+
+## Live Backend
+
+**URL:** `https://choracle-backend.onrender.com`
+
+> **Free tier note:** The backend spins down after ~15 minutes of inactivity.
+> The first request after idle takes **20–30 seconds** to wake up. Subsequent
+> requests are instant. If the app appears stuck on load, wait a moment and
+> pull-to-refresh.
+
+To manually wake it before opening the app:
+
+```bash
+curl https://choracle-backend.onrender.com/api/household/
+```
+
+### Database
+
+- **Provider:** Render PostgreSQL (free tier)
+- **Expires:** 2026-05-25 — must be upgraded or recreated before that date or all data is lost.
+
+To seed the initial household after a fresh database:
+
+```bash
+# SSH into the Render shell or run via Render dashboard → Shell
+python manage.py seed_household
+```
+
+### Verified endpoints (2026-04-26)
+
+| Method | Path | Status |
+|--------|------|--------|
+| GET | `/api/household/` | ✓ 200 |
+| GET | `/api/chores/` | ✓ 200 |
+| GET | `/api/default-chores/` | ✓ 200 |
+| GET | `/api/shopping-items/` | ✓ 200 |
+| GET | `/api/favorite-items/` | ✓ 200 |
+| GET | `/api/transactions/` | ✓ 200 |
+| GET | `/api/transactions/recurring/` | ✓ 200 |
+| GET | `/api/debts/` | ✓ 200 |
+
+---
 
 ## Development Setup
 
@@ -38,6 +82,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env  # fill in your values
 python manage.py migrate
+python manage.py seed_household   # creates the single household + sample members
 python manage.py runserver
 ```
 
@@ -46,14 +91,40 @@ python manage.py runserver
 ```bash
 cd frontend
 flutter pub get
+
+# Android emulator
 flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api
+
+# Physical device (replace with your machine's LAN IP)
+flutter run --dart-define=API_BASE_URL=http://192.168.x.x:8000/api
+
+# Against the live Render backend (default, no flag needed)
+flutter run
 ```
 
-For physical device, replace `10.0.2.2` with your machine's LAN IP.
+---
 
 ## Deployment
 
-Backend is deployed on Render. See `render.yaml` for configuration.
+Backend is deployed on Render. See `render.yaml` for the full config.
+
+### Render environment variables
+
+| Key | Value |
+|-----|-------|
+| `SECRET_KEY` | auto-generated |
+| `DEBUG` | `False` |
+| `DATABASE_URL` | from Render Postgres |
+| `ALLOWED_HOSTS` | `.onrender.com` |
+| `CORS_ALLOWED_ORIGINS` | `*` |
+
+### Re-deploying
+
+Push to `main` — Render auto-deploys on every push to the connected branch.
+
+```bash
+git push origin main
+```
 
 ---
 
