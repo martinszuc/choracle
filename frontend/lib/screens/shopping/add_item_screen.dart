@@ -127,7 +127,12 @@ class _AddItemScreenState extends State<AddItemScreen> {
 
   Future<void> _submit(BuildContext context, AppProvider app, ShoppingProvider shopping) async {
     final currentMember = app.currentMember;
-    if (currentMember == null) return;
+    if (currentMember == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select who you are first (menu → your name)')),
+      );
+      return;
+    }
 
     final debtOption = _addToDebts ? (_isGroup ? 'group' : 'single') : 'none';
 

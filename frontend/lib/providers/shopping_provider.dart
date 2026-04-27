@@ -59,10 +59,20 @@ class ShoppingProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> togglePurchased(String itemId, {String? purchasedById, String? linkedTransactionId}) async {
+  Future<void> togglePurchased(
+    String itemId, {
+    required bool purchased,
+    String? purchasedById,
+    String? linkedTransactionId,
+  }) async {
     try {
-      final data = <String, dynamic>{'purchased': true};
-      if (purchasedById != null) data['purchased_by'] = purchasedById;
+      final data = <String, dynamic>{'purchased': purchased};
+      if (purchased && purchasedById != null) {
+        data['purchased_by_id'] = purchasedById;
+      } else if (!purchased) {
+        data['purchased_by_id'] = null;
+        data['linked_transaction'] = null;
+      }
       if (linkedTransactionId != null) data['linked_transaction'] = linkedTransactionId;
       final resp = await ApiClient.instance.dio.put('/shopping-items/$itemId/', data: data);
       final updated = ShoppingItem.fromJson(resp.data as Map<String, dynamic>);

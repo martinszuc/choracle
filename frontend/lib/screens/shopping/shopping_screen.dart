@@ -78,7 +78,9 @@ class _ShoppingItemTile extends StatelessWidget {
       child: ListTile(
         leading: Checkbox(
           value: item.purchased,
-          onChanged: item.purchased ? null : (_) => _handlePurchase(context, app, shopping),
+          onChanged: (_) => item.purchased
+              ? _handleUnpurchase(context, app, shopping)
+              : _handlePurchase(context, app, shopping),
         ),
         title: Text(
           item.name,
@@ -102,13 +104,38 @@ class _ShoppingItemTile extends StatelessWidget {
     );
   }
 
+  Future<void> _handleUnpurchase(
+    BuildContext context,
+    AppProvider app,
+    ShoppingProvider shopping,
+  ) async {
+    if (item.linkedTransactionId != null) {
+      final finance = context.read<FinanceProvider>();
+      await finance.deleteTransaction(item.linkedTransactionId!);
+    }
+    if (!context.mounted) return;
+    await shopping.togglePurchased(item.id, purchased: false);
+  }
+
   Future<void> _handlePurchase(
     BuildContext context,
     AppProvider app,
     ShoppingProvider shopping,
   ) async {
-    if (item.debtOption == 'none') {
-      await shopping.togglePurchased(item.id, purchasedById: app.currentMember?.id);
+    final currentMember = app.currentMember;
+    if (currentMember == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Select who you are first (menu → your name)')),
+      );
+      return;
+    }
+
+    // no-debt item or single-debt where buyer is the creator — just mark purchased
+    final skipDebt = item.debtOption == 'none' ||
+        (item.debtOption == 'single' && currentMember.id == item.createdBy.id);
+
+    if (skipDebt) {
+      await shopping.togglePurchased(item.id, purchased: true, purchasedById: currentMember.id);
       return;
     }
 
@@ -134,10 +161,7 @@ class _ShoppingItemTile extends StatelessWidget {
     if (confirmed != true || !context.mounted) return;
 
     final amount = double.tryParse(priceCtrl.text);
-    if (amount == null) return;
-
-    final currentMember = app.currentMember;
-    if (currentMember == null) return;
+    if (amount == null || amount <= 0) return;
 
     final members = app.members;
     final participantIds = item.debtOption == 'group'
@@ -155,6 +179,6 @@ class _ShoppingItemTile extends StatelessWidget {
 
     if (!context.mounted) return;
     final txId = financeProvider.transactions.isNotEmpty ? financeProvider.transactions.first.id : null;
-    await shopping.togglePurchased(item.id, purchasedById: currentMember.id, linkedTransactionId: txId);
+    await shopping.togglePurchased(item.id, purchased: true, purchasedById: currentMember.id, linkedTransactionId: txId);
   }
 }
