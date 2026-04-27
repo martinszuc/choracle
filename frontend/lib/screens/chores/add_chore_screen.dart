@@ -78,18 +78,22 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
   }
 
   Widget _buildImmediateForm(List<Member> members, ChoresProvider chores) {
+    // sync the selected member to the matching instance from the current members list
+    final resolvedMember = _resolveMember(_selectedMember, members);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
           controller: _nameCtrl,
           decoration: const InputDecoration(labelText: 'Chore name'),
+          onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: 12),
         _MemberDropdown(
           label: 'Assign to',
           members: members,
-          value: _selectedMember,
+          value: resolvedMember,
           onChanged: (m) => setState(() => _selectedMember = m),
         ),
         const SizedBox(height: 16),
@@ -108,7 +112,19 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
     );
   }
 
+  /// finds the matching member instance from the current list by id
+  Member? _resolveMember(Member? stored, List<Member> members) {
+    if (stored == null) return null;
+    try {
+      return members.firstWhere((m) => m.id == stored.id);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Widget _buildScheduledForm(List<Member> members, ChoresProvider chores) {
+    final resolvedSchedMember = _resolveMember(_schedMember, members);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -121,7 +137,7 @@ class _AddChoreScreenState extends State<AddChoreScreen> {
         _MemberDropdown(
           label: 'Assign to',
           members: members,
-          value: _schedMember,
+          value: resolvedSchedMember,
           onChanged: (m) => setState(() => _schedMember = m),
         ),
         const SizedBox(height: 12),
@@ -199,7 +215,8 @@ class _MemberDropdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DropdownButtonFormField<Member>(
-      initialValue: members.contains(value) ? value : null,
+      // ignore: deprecated_member_use
+      value: value,
       decoration: InputDecoration(labelText: label),
       items: members
           .map((m) => DropdownMenuItem(value: m, child: Text(m.name)))

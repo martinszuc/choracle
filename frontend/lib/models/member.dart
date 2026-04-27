@@ -19,4 +19,10 @@ class Member {
       );
 
   Map<String, dynamic> toJson() => {'id': id, 'name': name, 'color': color, 'household': householdId};
+
+  @override
+  bool operator ==(Object other) => other is Member && other.id == id;
+
+  @override
+  int get hashCode => id.hashCode;
 }
