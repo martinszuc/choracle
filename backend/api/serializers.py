@@ -84,24 +84,38 @@ class FavoriteItemSerializer(serializers.ModelSerializer):
 
 class ShoppingItemSerializer(serializers.ModelSerializer):
     created_by = MemberNestedSerializer(read_only=True)
-    created_by_id = serializers.UUIDField(write_only=True)
+    created_by_id = serializers.UUIDField(write_only=True, required=False)
     purchased_by = MemberNestedSerializer(read_only=True)
+    purchased_by_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
 
     class Meta:
         model = ShoppingItem
         fields = [
             'id', 'name', 'quantity', 'purchased',
             'created_by', 'created_by_id',
-            'purchased_by',
+            'purchased_by', 'purchased_by_id',
             'debt_option', 'linked_transaction',
             'household', 'created_at',
         ]
-        read_only_fields = ['id', 'purchased_by', 'linked_transaction', 'created_at']
+        read_only_fields = ['id', 'created_at']
 
     def create(self, validated_data):
         created_by_id = validated_data.pop('created_by_id')
+        validated_data.pop('purchased_by_id', None)
         member = Member.objects.get(id=created_by_id)
         return ShoppingItem.objects.create(created_by=member, **validated_data)
+
+    def update(self, instance, validated_data):
+        purchased_by_id = validated_data.pop('purchased_by_id', None)
+        if purchased_by_id is not None:
+            instance.purchased_by = Member.objects.get(id=purchased_by_id)
+        elif 'purchased_by_id' in self.initial_data and self.initial_data['purchased_by_id'] is None:
+            instance.purchased_by = None
+        validated_data.pop('created_by_id', None)
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+        return instance
 
 
 class TransactionSerializer(serializers.ModelSerializer):

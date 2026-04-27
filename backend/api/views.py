@@ -104,7 +104,7 @@ def chore_list_create(request):
     data = {**request.data, 'household': str(household.id), 'week_identifier': _week_id(date.today())}
     serializer = ChoreSerializer(data=data)
     if serializer.is_valid():
-        chore = serializer.save()
+        chore = serializer.save(week_identifier=_week_id(date.today()))
         return Response(ChoreSerializer(chore).data, status=201)
     return Response(serializer.errors, status=400)
 
@@ -184,6 +184,17 @@ def default_chore_list_create(request):
     serializer = DefaultChoreSerializer(data=data)
     if serializer.is_valid():
         obj = serializer.save()
+        today = date.today()
+        if obj.start_date <= today:
+            Chore.objects.create(
+                household=obj.household,
+                name=obj.name,
+                assigned_to=obj.assigned_to,
+                original_assigned_to=obj.assigned_to,
+                week_identifier=_week_id(today),
+            )
+            obj.last_generated = today
+            obj.save(update_fields=['last_generated'])
         return Response(DefaultChoreSerializer(obj).data, status=201)
     return Response(serializer.errors, status=400)
 
@@ -333,10 +344,16 @@ def transaction_detail(request, pk):
         tx.delete()
         return Response(status=204)
 
+    if tx.is_settlement:
+        return Response({'detail': 'Settlement transactions cannot be edited.'}, status=400)
+
     serializer = TransactionSerializer(tx, data=request.data, partial=True)
     if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
+        updated_tx = serializer.save()
+        if not updated_tx.is_recurring:
+            updated_tx.debts.all().delete()
+            _spawn_transaction_debts(updated_tx)
+        return Response(TransactionSerializer(updated_tx).data)
     return Response(serializer.errors, status=400)
 
 
@@ -411,14 +428,15 @@ def debt_settle(request):
 
     debts.delete()
 
+    # debtor is paying back, so they are the creditor of the settlement transaction
     settlement = Transaction.objects.create(
         household=household,
-        creditor=creditor,
+        creditor=debtor,
         amount=settle_amount,
         description=f'Settlement: {debtor.name} → {creditor.name}',
         is_settlement=True,
     )
-    settlement.participants.set([debtor, creditor])
+    settlement.participants.set([creditor])
 
     if remainder > 0:
         Debt.objects.create(
