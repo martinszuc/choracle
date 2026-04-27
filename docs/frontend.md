@@ -1,6 +1,6 @@
 # Frontend
 
-Flutter Android app. UI follows Material 3. State is managed with the `provider` package using `ChangeNotifier`. No local database — all state comes from the REST API and lives in memory.
+Flutter Android app, Material 3. All state lives in memory — no local database. State is managed with the `provider` package (`ChangeNotifier`).
 
 ---
 
@@ -8,40 +8,17 @@ Flutter Android app. UI follows Material 3. State is managed with the `provider`
 
 Source: [`frontend/lib/app.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart)
 
-Four providers, set up in `app.dart` via `MultiProvider`:
-
-```dart
-MultiProvider(providers: [
-  ChangeNotifierProvider(create: (_) => AppProvider()..initialize()),
-  ChangeNotifierProxyProvider<AppProvider, ChoresProvider>(...),
-  ChangeNotifierProxyProvider<AppProvider, ShoppingProvider>(...),
-  ChangeNotifierProxyProvider<AppProvider, FinanceProvider>(...),
-])
-```
-
-`ChangeNotifierProxyProvider` is the key pattern here ([`app.dart:25–35`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L25)). The three module providers depend on `AppProvider` to get the `householdId`. Whenever `AppProvider` rebuilds (e.g. after `initialize()` finishes), the proxy re-runs `update`, which calls `setHouseholdId()` on each child provider. This triggers their initial data fetch automatically — the screens never need to call `fetch` manually.
+Four providers set up via `MultiProvider`. The three module providers depend on `AppProvider` via `ChangeNotifierProxyProvider` ([`app.dart:25`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L25)) — when `AppProvider` finishes loading the household, it propagates `householdId` to each child, which triggers their initial fetch automatically.
 
 ```
 AppProvider (household, currentMember)
-    │
-    ├── ChoresProvider.setHouseholdId() → fetchChores() + fetchDefaultChores()
-    ├── ShoppingProvider.setHouseholdId() → fetchItems() + fetchFavorites()
-    └── FinanceProvider.setHouseholdId() → fetchAll()   (debts + transactions + recurring)
+      ↓ householdId via ChangeNotifierProxyProvider
+  ChoresProvider → fetchChores() + fetchDefaultChores()
+  ShoppingProvider → fetchItems() + fetchFavorites()
+  FinanceProvider → fetchAll() [debts + transactions + recurring]
 ```
 
-### AppProvider
-[`frontend/lib/providers/app_provider.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/providers/app_provider.dart)
-
-Owns the `Household` (members list) and `currentMember` (which member is "me"). Persists `currentMember` selection across app restarts via `SharedPreferences` ([`app_provider.dart:31–33`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/providers/app_provider.dart#L31)):
-
-```dart
-final savedId = prefs.getString(_kSelectedMemberId);
-if (savedId != null) {
-  _currentMember = _household!.members.where((m) => m.id == savedId).firstOrNull;
-}
-```
-
-If a single member exists and none is saved, it auto-selects. With multiple members and no saved choice, the identity picker screen is shown.
+**AppProvider** ([`app_provider.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/providers/app_provider.dart)) — owns `Household` and `currentMember`. Persists the selected member in `SharedPreferences` ([`app_provider.dart:31`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/providers/app_provider.dart#L31)). Auto-selects if only one member exists; shows the identity picker if multiple members and none saved.
 
 ---
 
@@ -49,160 +26,80 @@ If a single member exists and none is saved, it auto-selects. With multiple memb
 
 Source: [`frontend/lib/core/api_client.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/core/api_client.dart)
 
-Singleton `Dio` instance with two interceptors:
+Singleton `Dio` with two interceptors:
 
-**`_ApiLogInterceptor`** — the more interesting one ([`api_client.dart:71`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/core/api_client.dart#L71)):
-- On every request start: increments `apiInFlight` (a `ValueNotifier<int>`) — the navigation shell watches this to show/hide the thin progress bar at the top of every screen.
-- On every mutating response (POST/PUT/DELETE): emits a short string (`"Saved"`, `"Updated"`, `"Deleted"`) into `apiSuccessEvents` — a broadcast `StreamController` the shell listens to for success snackbars.
-- Logs request + response body (truncated at 800 chars) in debug mode with timing.
+- **`_ApiLogInterceptor`** — increments `apiInFlight` (a `ValueNotifier<int>`) on each request start/end. The nav shell watches this to show/hide a 2px progress bar at the top of every screen. On mutating responses (POST/PUT/DELETE), emits to `apiSuccessEvents` broadcast stream — the shell shows success snackbars. Logs request+response with timing in debug mode.
+- **Error interceptor** — wraps Dio errors into `ApiException` with the JSON `detail` message extracted.
 
-**Error interceptor** — wraps Dio errors into `ApiException` with a clean `message`, extracted from the JSON `detail` field ([`api_client.dart:46–60`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/core/api_client.dart#L46)).
-
-Timeouts are set generously: 45 s connect, 30 s receive ([`api_client.dart:39–41`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/core/api_client.dart#L39)). This is intentional — the local server won't need it, but a Render cold start can take 20–30 s.
+Timeouts: 45 s connect, 30 s receive ([`api_client.dart:39`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/core/api_client.dart#L39)).
 
 ---
 
 ## Navigation Shell
 
-Source: [`frontend/lib/app.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart)
+Source: [`app.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart)
 
-The shell (`_HomeShell`) has three layers of logic before rendering the main `Scaffold`:
+Before rendering the main scaffold, three states are handled in order:
 
-1. **Wake-up screen** ([`app.dart:121–123`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L121)) — shown while `AppProvider` is loading and household is `null`. Displays "Connecting…" with a spinner.
-2. **Error screen** ([`app.dart:125–130`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L125)) — if the API call fails entirely, shows a troubleshooting checklist with a Retry button.
-3. **Identity picker** ([`app.dart:134–136`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L134)) — if household loaded but `currentMember` is `null` and there are multiple members, shows a full-screen "Who are you?" picker.
+1. **Wake-up screen** — loading + no household yet → spinner + "Connecting…"
+2. **Error screen** — API failed → troubleshooting checklist + Retry button
+3. **Identity picker** — household loaded, no `currentMember`, multiple members → "Who are you?" full-screen
 
-The main Scaffold uses `IndexedStack` for tabs ([`app.dart:182`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L182)) — all three tab navigators exist simultaneously, preserving scroll position and state when switching tabs.
+Main scaffold uses `IndexedStack` ([`app.dart:182`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L182)) so all three tab navigators exist simultaneously — tab state and scroll position are preserved when switching.
 
-The progress bar overlay ([`app.dart:200–209`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L200)) is a `Positioned` `LinearProgressIndicator` at the top of the stack, shown whenever `apiInFlight.value > 0`:
-
-```dart
-ValueListenableBuilder<int>(
-  valueListenable: apiInFlight,
-  builder: (_, count, __) => count > 0
-    ? const Positioned(top: 0, ..., child: LinearProgressIndicator(minHeight: 2))
-    : const SizedBox.shrink(),
-)
-```
-
-> **GIF:** `gifs/01-launch.gif` — Launch app → spinner → identity picker → tap name → main screen appears
+> **GIF:** `gifs/01-launch.gif` — launch → spinner → identity picker → main screen
 
 ---
 
 ## Chores Module
 
-### ChoresScreen
-[`frontend/lib/screens/chores/chores_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart)
+**ChoresScreen** ([`chores_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart)) — Filters chores into four sections client-side: Your tasks, Others' tasks, Unassigned, Completed. Cards in "Your tasks" show an age-based border: grey → orange at 2 days → red at 3+ days ([`chores_screen.dart:116`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart#L116)). "Take Over" reassigns `assigned_to`; completed cards show "Originally: [name]" when the completer differs from the original assignee.
 
-Chores are filtered client-side into four buckets ([`chores_screen.dart:27–36`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart#L27)):
-- **Your tasks** — `assigned_to.id == currentMember.id && !completed`
-- **Others' tasks** — different member, not completed
-- **Unassigned** — `assigned_to == null`, not completed
-- **Completed this week** — all completed chores
+> **GIF:** `gifs/02-chores.gif` — complete own chore, take over another member's chore
 
-Cards in "Your tasks" show an age-based border color ([`chores_screen.dart:116–121`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart#L116)): grey under 2 days, orange at 2 days, red at 3+ days — a visual urgency indicator without any explicit deadline field.
+**AddChoreScreen** ([`add_chore_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/add_chore_screen.dart)) — `SegmentedButton` toggles between Immediate (name + member → `POST /chores/`) and Scheduled (name + member + frequency + start date → `POST /default-chores/`). Both default the assignee to `currentMember` ([`add_chore_screen.dart:33`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/add_chore_screen.dart#L33)).
 
-"Take Over" calls `PUT /chores/{id}/assign/` and the backend stores which member originally had it. The completed card shows "Originally: [name]" when the completer was not the original assignee ([`chores_screen.dart:177–180`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart#L177)).
+> **GIF:** `gifs/03-add-chore.gif` — switch Immediate↔Scheduled, set frequency + date, save template
 
-> **GIF:** `gifs/02-chores.gif` — Scroll sections, tap Done on own chore, tap Take Over on another's
+**StatsScreen** ([`stats_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/stats_screen.dart)) — Three `fl_chart` charts: weekly line chart (x-axis: ISO week label), pie chart (original vs taken-over), daily bar chart (last 7 days, labeled by weekday abbreviation).
 
-### AddChoreScreen
-[`frontend/lib/screens/chores/add_chore_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/add_chore_screen.dart)
-
-Two modes via `SegmentedButton`:
-
-- **Immediate** — name + member dropdown → `POST /chores/`. Defaults assignee to `currentMember` ([`add_chore_screen.dart:33–35`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/add_chore_screen.dart#L33)).
-- **Scheduled** — name + member + frequency (days) + start date → `POST /default-chores/`. Below the form, lists existing templates with a delete button. The scheduler picks these up at midnight.
-
-> **GIF:** `gifs/03-add-chore.gif` — Switch Immediate↔Scheduled, set frequency + date picker, save template
-
-### StatsScreen
-[`frontend/lib/screens/chores/stats_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/stats_screen.dart)
-
-Three charts from `fl_chart`:
-
-- **Line chart (`_WeeklyChart`)** — x-axis is ISO week keys sorted chronologically. The label is `sorted[i].key.substring(5)` which trims `"2026-"` leaving `"W17"` ([`stats_screen.dart:109`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/stats_screen.dart#L109)).
-- **Pie chart (`_PieChart`)** — original completions vs taken-over, derived as `completedCount - takenOverCount`.
-- **Bar chart (`_DailyChart`)** — last 7 days, x-axis labeled with day abbreviation (`Mon`, `Tue`, …). Data comes from `MemberStats.daily_history` keyed by ISO date string.
-
-> **GIF:** `gifs/04-stats.gif` — Open stats from chores header icon, scroll charts
+> **GIF:** `gifs/04-stats.gif` — open stats from header icon, scroll charts
 
 ---
 
 ## Shopping Module
 
-### ShoppingScreen
-[`frontend/lib/screens/shopping/shopping_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_screen.dart)
+**ShoppingScreen** ([`shopping_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_screen.dart)) — Items sorted unpurchased-first. Pull-to-refresh. `hideChecked` toggle filters the list. Purchasing a debt-linked item shows a price dialog, calls `FinanceProvider.addTransaction`, then links the resulting transaction to the item ([`shopping_screen.dart:105`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_screen.dart#L105)). Participant list: `single` → current member + item creator; `group` → all members.
 
-Items are sorted: unpurchased first (by `createdAt`), purchased last. Pull-to-refresh calls `fetchItems()`. The "Hide purchased" toggle (`ShoppingProvider.hideChecked`) filters the list before rendering.
+> **GIF:** `gifs/05-shopping.gif` — add typed item + favorite with qty  
+> **GIF:** `gifs/06-purchase.gif` — tick debt-linked item → price dialog → debt appears in Finance
 
-Checking an item calls `_handlePurchase` ([`shopping_screen.dart:105`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_screen.dart#L105)):
-- If `debt_option == 'none'` → immediately marks purchased, no dialog.
-- If `debt_option == 'single'` or `'group'` → shows a price dialog, creates a `Transaction` via `FinanceProvider.addTransaction`, then links it to the item via `ShoppingProvider.togglePurchased(..., linkedTransactionId: txId)`.
+**AddItemScreen** ([`add_item_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/add_item_screen.dart)) — Batch submission: type multiple items, select favorites by quantity, one `POST /shopping-items/` with a JSON array. Debt toggle and split mode apply to the whole batch.
 
-The participant list for the auto-created transaction:
-- `'single'` → `[currentMember.id, item.createdBy.id]`
-- `'group'` → all household member IDs
-
-> **GIF:** `gifs/05-shopping.gif` — Add item by typing, add from favorites with qty, submit list  
-> **GIF:** `gifs/06-purchase.gif` — Tick a debt-linked item → price dialog → confirm → debt row appears in Finance
-
-### AddItemScreen
-[`frontend/lib/screens/shopping/add_item_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/add_item_screen.dart)
-
-Batch submission — the user can type multiple items and adjust quantities before a single `POST /shopping-items/` with a JSON array. Favorites are shown below with +/− quantity controls; qty of 0 means excluded. The debt toggle and split mode (person/group) apply uniformly to the whole batch.
-
-### ShoppingSettingsScreen
-[`frontend/lib/screens/shopping/shopping_settings_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_settings_screen.dart)
-
-Two in-memory toggles (not persisted to backend or SharedPreferences — reset on app restart):
-- Show member avatars
-- Hide purchased items
-
-Favorites CRUD: add by typing, delete via Edit mode toggle (shows red delete icons).
+**ShoppingSettingsScreen** ([`shopping_settings_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_settings_screen.dart)) — Toggles for avatar visibility and hide-purchased (in-memory only, not persisted). Favorites CRUD with Edit mode.
 
 ---
 
 ## Finance Module
 
-### FinanceScreen
-[`frontend/lib/screens/finance/finance_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/finance_screen.dart)
+**FinanceScreen** ([`finance_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/finance_screen.dart)) — Overview: aggregated debts, next scheduled payment, 3 most recent transactions. Pull-to-refresh. Tap a debt row → `_SettleSheet` bottom sheet with Full / Partial chips. Partial shows an amount field → `POST /debts/settle/`.
 
-The overview screen shows three sections: active debts, next scheduled payment, and the 3 most recent transactions. Has pull-to-refresh.
+> **GIF:** `gifs/07-finance.gif` — add transaction, view debt row  
+> **GIF:** `gifs/08-settle.gif` — tap debt → settle modal → partial amount → confirm
 
-Tapping a debt row opens `_SettleSheet` — a bottom sheet with "Full" / "Partial" chip selection ([`finance_screen.dart:135`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/finance_screen.dart#L135)). Partial mode shows an amount field. On confirm → `POST /debts/settle/` → all existing debt rows between the pair are deleted and a settlement Transaction is created.
+**TransactionFormScreen** ([`transaction_form_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transaction_form_screen.dart)) — Create and edit. Defaults creditor to `currentMember`, all members as participants. Creditor selected via opacity-dimmed avatar row. Live per-person share calculation. Scheduled toggle shows date picker + recurrence bottom sheet (`weekly / biweekly / monthly / semiannually`).
 
-> **GIF:** `gifs/07-finance.gif` — View debt row, tap → settle sheet, choose partial, enter amount, confirm  
-> **GIF:** `gifs/08-settle.gif` — Full settlement: tap debt → Full → Settle → row disappears
+**TransactionsScreen** ([`transactions_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transactions_screen.dart)) — Full history grouped by month (`DateFormat('MMMM yyyy')`), running total in app bar. Tap → detail sheet with Edit (checks `can-edit` first) and Delete.
 
-### TransactionFormScreen
-[`frontend/lib/screens/finance/transaction_form_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transaction_form_screen.dart)
-
-Used for both creating and editing transactions (`existing` param). On create, defaults creditor to `currentMember` and pre-selects all members as participants ([`transaction_form_screen.dart:43–45`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transaction_form_screen.dart#L43)).
-
-Creditor selection is a row of avatar+name tiles with opacity — selected member is full opacity, others at 40%. Participants are checkboxes with a live per-person share calculation.
-
-"Shared shopping items" button ([`transaction_form_screen.dart:126–133`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transaction_form_screen.dart#L126)) pulls group-debt unpurchased items and lets the user pick them to pre-fill the description.
-
-The `_recurrenceOptions` list ([`transaction_form_screen.dart:11`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transaction_form_screen.dart#L11)) is `['weekly', 'biweekly', 'monthly', 'semiannually']` — presented in a bottom sheet picker when the scheduled toggle is enabled.
-
-### TransactionsScreen
-[`frontend/lib/screens/finance/transactions_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transactions_screen.dart)
-
-Full history, grouped by month ([`transactions_screen.dart:59–66`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transactions_screen.dart#L59)) using `DateFormat('MMMM yyyy')`. Shows running total in the app bar subtitle. Tapping a row opens `_TxDetailSheet` with amount, creditor, date, and Edit/Delete buttons. Edit checks `can-edit` before navigating.
-
-### ScheduledPaymentsScreen
-[`frontend/lib/screens/finance/scheduled_payments_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/scheduled_payments_screen.dart)
-
-Lists recurring transaction templates grouped by their `next_payment_date` month. Each tile shows the next date and recurrence interval. Tap → detail sheet with Edit/Delete.
+**ScheduledPaymentsScreen** ([`scheduled_payments_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/scheduled_payments_screen.dart)) — Recurring templates grouped by `next_payment_date` month. Tap → detail sheet with Edit / Delete.
 
 ---
 
 ## Shared Widgets
 
-| Widget | File | Purpose |
-|---|---|---|
-| `AppHeader` | `widgets/shared/app_header.dart` | Consistent app bar with hamburger menu trigger, title, subtitle, current member avatar |
-| `MemberAvatar` | `widgets/shared/member_avatar.dart` | Colored circle with initials, used everywhere |
-| `EmptyState` | `widgets/shared/empty_state.dart` | Centered icon + message for empty lists |
-| `LoadingSpinner` | `widgets/shared/loading_spinner.dart` | Centered `CircularProgressIndicator` |
+| Widget | Purpose |
+|---|---|
+| `AppHeader` | App bar with hamburger, title, subtitle, member avatar |
+| `MemberAvatar` | Colored circle with initials |
+| `EmptyState` | Centered icon + message for empty lists |
+| `LoadingSpinner` | Centered `CircularProgressIndicator` |
