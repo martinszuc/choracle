@@ -47,7 +47,7 @@ Before rendering the main scaffold, three states are handled in order:
 
 Main scaffold uses `IndexedStack` ([`app.dart:182`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/app.dart#L182)) so all three tab navigators exist simultaneously — tab state and scroll position are preserved when switching.
 
-> **GIF:** `gifs/01-launch.gif` — launch → spinner → identity picker → main screen
+> **Recording:** [Add member](gifs/01-add-member.mp4)
 
 ---
 
@@ -55,15 +55,14 @@ Main scaffold uses `IndexedStack` ([`app.dart:182`](https://github.com/martinszu
 
 **ChoresScreen** ([`chores_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart)) — Filters chores into four sections client-side: Your tasks, Others' tasks, Unassigned, Completed. Cards in "Your tasks" show an age-based border: grey → orange at 2 days → red at 3+ days ([`chores_screen.dart:116`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/chores_screen.dart#L116)). "Take Over" reassigns `assigned_to`; completed cards show "Originally: [name]" when the completer differs from the original assignee.
 
-> **GIF:** `gifs/02-chores.gif` — complete own chore, take over another member's chore
+> **Recording:** [Complete chore](gifs/04-complete-chore.mp4)
 
 **AddChoreScreen** ([`add_chore_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/add_chore_screen.dart)) — `SegmentedButton` toggles between Immediate (name + member → `POST /chores/`) and Scheduled (name + member + frequency + start date → `POST /default-chores/`). Both default the assignee to `currentMember` ([`add_chore_screen.dart:33`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/add_chore_screen.dart#L33)).
 
-> **GIF:** `gifs/03-add-chore.gif` — switch Immediate↔Scheduled, set frequency + date, save template
+> **Recording:** [Add chore](gifs/02-add-chore.mp4) · [Scheduled chore](gifs/03-add-scheduled-chore.mp4)
 
 **StatsScreen** ([`stats_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/chores/stats_screen.dart)) — Three `fl_chart` charts: weekly line chart (x-axis: ISO week label), pie chart (original vs taken-over), daily bar chart (last 7 days, labeled by weekday abbreviation).
 
-> **GIF:** `gifs/04-stats.gif` — open stats from header icon, scroll charts
 
 ---
 
@@ -71,8 +70,7 @@ Main scaffold uses `IndexedStack` ([`app.dart:182`](https://github.com/martinszu
 
 **ShoppingScreen** ([`shopping_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_screen.dart)) — Items sorted unpurchased-first. Pull-to-refresh. `hideChecked` toggle filters the list. Purchasing a debt-linked item shows a price dialog, calls `FinanceProvider.addTransaction`, then links the resulting transaction to the item ([`shopping_screen.dart:105`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/shopping_screen.dart#L105)). Participant list: `single` → current member + item creator; `group` → all members.
 
-> **GIF:** `gifs/05-shopping.gif` — add typed item + favorite with qty  
-> **GIF:** `gifs/06-purchase.gif` — tick debt-linked item → price dialog → debt appears in Finance
+> **Recording:** [Shopping list](gifs/07-shopping-list.mp4)
 
 **AddItemScreen** ([`add_item_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/shopping/add_item_screen.dart)) — Batch submission: type multiple items, select favorites by quantity, one `POST /shopping-items/` with a JSON array. Debt toggle and split mode apply to the whole batch.
 
@@ -84,8 +82,7 @@ Main scaffold uses `IndexedStack` ([`app.dart:182`](https://github.com/martinszu
 
 **FinanceScreen** ([`finance_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/finance_screen.dart)) — Overview: aggregated debts, next scheduled payment, 3 most recent transactions. Pull-to-refresh. Tap a debt row → `_SettleSheet` bottom sheet with Full / Partial chips. Partial shows an amount field → `POST /debts/settle/`.
 
-> **GIF:** `gifs/07-finance.gif` — add transaction, view debt row  
-> **GIF:** `gifs/08-settle.gif` — tap debt → settle modal → partial amount → confirm
+> **Recording:** [Add transaction](gifs/05-add-transaction.mp4) · [Settle debt](gifs/06-settle-debt.mp4)
 
 **TransactionFormScreen** ([`transaction_form_screen.dart`](https://github.com/martinszuc/choracle/blob/main/frontend/lib/screens/finance/transaction_form_screen.dart)) — Create and edit. Defaults creditor to `currentMember`, all members as participants. Creditor selected via opacity-dimmed avatar row. Live per-person share calculation. Scheduled toggle shows date picker + recurrence bottom sheet (`weekly / biweekly / monthly / semiannually`).
 

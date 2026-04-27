@@ -4,6 +4,33 @@
 
 Shared household management app for Android — chore tracking, shopping list, and expense management in one place. Targets a single fixed household with named members. No authentication.
 
+| | |
+|---|---|
+| **Demo video** | [YouTube Short](https://youtube.com/shorts/p1JijENZFTk?feature=share) |
+| **Presentation** | [Google Slides](https://docs.google.com/presentation/d/1jWutQJZBuhMMU7x55qPtToyb9j81pP7IZmwUseL6kx4/edit?usp=sharing) |
+
+---
+
+## Work Packages
+
+| WP | Title | Estimated hours |
+|---|---|---|
+| WP1 | Backend — Django REST API | 12 h |
+| WP2 | Chores Module | 10 h |
+| WP3 | Shopping List Module | 10 h |
+| WP4 | Finance Module | 14 h |
+| WP5 | Presentation & Demo | 15 min |
+
+**WP1** — Django models (Household, Member, Chore, DefaultChore, MemberStats, ShoppingItem, Transaction, Debt), DRF serializers and views, CORS, APScheduler nightly jobs, Render deployment.
+
+**WP2** — Weekly chore screen (Your tasks / Others' / Unassigned / Completed), take-over flow, immediate + scheduled chore creation, stats screen with three fl_chart charts.
+
+**WP3** — Shared shopping list, batch item add, household favorites, debt-linking on purchase (single / group split), UI settings (hide purchased, toggle avatars).
+
+**WP4** — Transaction CRUD with creditor + participants + amount, recurring payment templates, debt aggregation (GROUP BY + SUM), full and partial settlement, transaction history grouped by month.
+
+**WP5** — 10 min presentation + 3 min recorded demo + 2 min Q&A.
+
 ---
 
 ## Tech Stack
@@ -92,20 +119,77 @@ python manage.py seed_household
 
 ---
 
-## GIF Recordings
+## Screenshots
 
-> Save to `docs/gifs/`. Use Android screen recorder or `scrcpy`.
+| Chores | Shopping | Finance | Error |
+|---|---|---|---|
+| ![Chores](screens/screen_chores.jpg) | ![Shopping](screens/screen_shopping.jpg) | ![Finance](screens/screen_finance.jpg) | ![Error](screens/screen_no_connection_to_server.jpg) |
 
-| File | What to record |
-|---|---|
-| `gifs/01-launch.gif` | Cold launch → spinner → identity picker → main screen |
-| `gifs/02-chores.gif` | Complete own chore + take over another member's chore |
-| `gifs/03-add-chore.gif` | Add immediate chore + switch to scheduled, set frequency + date |
-| `gifs/04-stats.gif` | Open stats, scroll through the three charts |
-| `gifs/05-shopping.gif` | Add items (typed + favorites), adjust qty, submit |
-| `gifs/06-purchase.gif` | Purchase a debt-linked item → price dialog → debt created |
-| `gifs/07-finance.gif` | Add transaction with participants, debt row appears |
-| `gifs/08-settle.gif` | Tap debt → settle sheet → partial settlement |
+**Chores** — Weekly tasks split into Your tasks, Others' tasks, and Completed. "Done" completes your own chore; "Take Over" reassigns another member's chore to you.
+
+**Shopping** — Shared list with checkbox purchase flow. Purchased items shown with strikethrough. Avatar shows who added each item.
+
+**Finance** — Aggregated debt rows (debtor → amount → creditor), upcoming scheduled payments, and recent transaction history.
+
+**Error screen** — Shown when the backend is unreachable. Includes a troubleshooting checklist and Retry button.
+
+---
+
+## Recordings
+
+### Add member
+
+<video src="gifs/01-add-member.mp4" controls width="320"></video>
+
+Add a new household member via the sidebar drawer. Color is auto-generated from the name.
+
+---
+
+### Add immediate chore
+
+<video src="gifs/02-add-chore.mp4" controls width="320"></video>
+
+Create a one-time chore and assign it to a member. Defaults to the current user.
+
+---
+
+### Add scheduled chore
+
+<video src="gifs/03-add-scheduled-chore.mp4" controls width="320"></video>
+
+Create a recurring chore template with frequency and start date. The first instance is generated immediately if start date is today or in the past; subsequent ones fire nightly.
+
+---
+
+### Complete a chore
+
+<video src="gifs/04-complete-chore.mp4" controls width="320"></video>
+
+Mark your own chore as done. Completed chores move to the "Completed this week" section with a strikethrough.
+
+---
+
+### Add a transaction
+
+<video src="gifs/05-add-transaction.mp4" controls width="320"></video>
+
+Add a shared expense — select creditor, participants, and amount. Debt rows are created automatically and split equally.
+
+---
+
+### Settle a debt
+
+<video src="gifs/06-settle-debt.mp4" controls width="320"></video>
+
+Tap a debt row to open the settle sheet. Choose full or partial settlement. Partial leaves a remainder debt.
+
+---
+
+### Shopping list
+
+<video src="gifs/07-shopping-list.mp4" controls width="320"></video>
+
+Add items by typing or from favorites. Check off items to mark as purchased.
 
 ---
 

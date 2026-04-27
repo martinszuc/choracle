@@ -98,10 +98,15 @@ class ShoppingItemSerializer(serializers.ModelSerializer):
             'household', 'created_at',
         ]
         read_only_fields = ['id', 'created_at']
+        extra_kwargs = {
+            'linked_transaction': {'required': False, 'allow_null': True},
+        }
 
     def create(self, validated_data):
-        created_by_id = validated_data.pop('created_by_id')
+        created_by_id = validated_data.pop('created_by_id', None)
         validated_data.pop('purchased_by_id', None)
+        if not created_by_id:
+            raise serializers.ValidationError({'created_by_id': 'This field is required.'})
         member = Member.objects.get(id=created_by_id)
         return ShoppingItem.objects.create(created_by=member, **validated_data)
 
