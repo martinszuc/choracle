@@ -153,7 +153,7 @@ class ChoresProvider extends ChangeNotifier {
         // ignore: use_null_aware_elements
         if (assignedToId != null) 'assigned_to_id': assignedToId,
       });
-      await fetchDefaultChores();
+      await Future.wait([fetchDefaultChores(), fetchChores()]);
     } on DioException catch (e) {
       _error = (e.error as ApiException?)?.message ?? e.message;
     } finally {
