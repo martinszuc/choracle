@@ -20,13 +20,13 @@ A multi-user household management app for Android. Covers chore tracking, a shar
 
 ## Screenshots
 
-| Chores | Shopping | Finance |
-|:---:|:---:|:---:|
-| ![Chores](docs/screens/screen_chores.jpg) | ![Shopping](docs/screens/screen_shopping.jpg) | ![Finance](docs/screens/screen_finance.jpg) |
+| Chores | Shopping |
+|:---:|:---:|
+| ![Chores](docs/screens/screen_chores.jpg) | ![Shopping](docs/screens/screen_shopping.jpg) |
 
-| Error handling |
-|:---:|
-| ![No connection](docs/screens/screen_no_connection_to_server.jpg) |
+| Finance | Error handling |
+|:---:|:---:|
+| ![Finance](docs/screens/screen_finance.jpg) | ![No connection](docs/screens/screen_no_connection_to_server.jpg) |
 
 ---
 
